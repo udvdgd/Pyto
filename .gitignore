@@ -22,3 +22,5 @@ Extensions/Lxml/dependencies/*
 lapack-ios.zip
 downloadable-site-packages/pure-python/*
 libOpenSSL.a
+.coverage
+.pytest_cache
