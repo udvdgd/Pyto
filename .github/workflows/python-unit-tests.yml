@@ -1,0 +1,17 @@
+name: python unit tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+      - run: pip install pytest coverage
+      - run: python -m coverage run --source Lib -m pytest PytoTests/Tests/python/unit
+      - run: python -m coverage report --skip-covered
