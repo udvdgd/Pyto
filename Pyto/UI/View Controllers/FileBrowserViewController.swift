@@ -921,6 +921,28 @@ fileprivate extension URL {
         return session.hasItemsConforming(toTypeIdentifiers: [kUTTypeItem as String])
     }
     
+    /// Presents an alert describing `error`.
+    ///
+    /// - Parameters:
+    ///     - error: The error to describe.
+    ///     - title: The title of the alert.
+    func present(error: Error, title: String) {
+        let alert = UIAlertController(title: title, message: error.localizedDescription, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: NSLocalizedString("ok", comment: "'Ok' button"), style: .cancel, handler: nil))
+        present(alert, animated: true, completion: nil)
+    }
+    
+    private func importFile(at url: URL, to destination: URL, operation: UIDropOperation) throws {
+        switch operation {
+        case .move:
+            try FileManager.default.moveItem(at: url, to: destination)
+        case .copy:
+            try FileManager.default.copyItem(at: url, to: destination)
+        default:
+            break
+        }
+    }
+    
     public func collectionView(_ collectionView: UICollectionView, performDropWith coordinator: UICollectionViewDropCoordinator) {
         
         // Good luck debugging this :)
@@ -933,20 +955,28 @@ fileprivate extension URL {
                 
                 let fileName = file.url.lastPathComponent
                 
-                if coordinator.proposal.operation == .move {
-                    try? FileManager.default.moveItem(at: file.url, to: destination.appendingPathComponent(fileName))
-                } else if coordinator.proposal.operation == .copy {
-                    try? FileManager.default.copyItem(at: file.url, to: destination.appendingPathComponent(fileName))
+                do {
+                    try importFile(at: file.url, to: destination.appendingPathComponent(fileName), operation: coordinator.proposal.operation)
+                } catch {
+                    present(error: error, title: NSLocalizedString("errors.errorMovingFile", comment: "Title of the alert shown when an error occurred while moving a file"))
                 }
                 
                 load()
                 
             } else if item.dragItem.itemProvider.hasItemConformingToTypeIdentifier(kUTTypeItem as String) {
                 
-                item.dragItem.itemProvider.loadInPlaceFileRepresentation(forTypeIdentifier: kUTTypeItem as String, completionHandler: { (file, inPlace, error) in
+                let operation = coordinator.proposal.operation
+                
+                item.dragItem.itemProvider.loadInPlaceFileRepresentation(forTypeIdentifier: kUTTypeItem as String, completionHandler: { [weak self] (file, inPlace, error) in
+                    
+                    func fail(_ error: Error) {
+                        DispatchQueue.main.async {
+                            self?.present(error: error, title: NSLocalizedString("errors.errorMovingFile", comment: "Title of the alert shown when an error occurred while moving a file"))
+                        }
+                    }
                     
                     if let error = error {
-                        print(error.localizedDescription)
+                        return fail(error)
                     }
                     
                     if let file = file {
@@ -954,10 +984,11 @@ fileprivate extension URL {
                         let fileName = file.lastPathComponent
                         
                         _ = file.startAccessingSecurityScopedResource()
-                        if coordinator.proposal.operation == .move {
-                            try? FileManager.default.moveItem(at: file, to: destination.appendingPathComponent(fileName))
-                        } else if coordinator.proposal.operation == .copy {
-                            try? FileManager.default.copyItem(at: file, to: destination.appendingPathComponent(fileName))
+                        do {
+                            try self?.importFile(at: file, to: destination.appendingPathComponent(fileName), operation: operation)
+                        } catch {
+                            file.stopAccessingSecurityScopedResource()
+                            return fail(error)
                         }
                         
                         file.stopAccessingSecurityScopedResource()

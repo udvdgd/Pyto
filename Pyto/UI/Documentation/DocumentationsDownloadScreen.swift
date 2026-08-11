@@ -27,7 +27,10 @@ struct DocumentationsDownloadScreen: View {
             do {
                 try await documentationManager.download(documentations: docs, progress: $progress)
             } catch {
-                print(error)
+                let message = error.localizedDescription
+                await MainActor.run {
+                    self.error = message
+                }
             }
             await MainActor.run {
                 progress = nil

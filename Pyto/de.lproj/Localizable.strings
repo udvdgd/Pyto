@@ -133,6 +133,12 @@
 /* Message shown when the user typed an empty name */
 "errors.emptyName" = "Es kann keine Datei mit einem leeren Namen erstellt werden.";
 
+/* The message of the alert shown when a documentation to remove is not downloaded. Replace %@ by the name of the documentation. */
+"errors.documentationNotDownloaded" = "\"%@\" is not downloaded.";
+
+/* The message of the alert shown when the archive of a documentation is missing. Replace %@ by the name of the documentation. */
+"errors.missingDocumentationArchive" = "The archive of the \"%@\" documentation is missing from the app.";
+
 /* The title of alerts shown when an error occurred while creating a file */
 "errors.errorCreatingFile" = "Fehler beim Erstellen der Datei!";
 

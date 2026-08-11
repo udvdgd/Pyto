@@ -93,11 +93,33 @@ import MobileCoreServices
         return pickMedia(.photoLibrary, scriptPath: scriptPath)
     }
     
+    private class SaveImageHandler: NSObject {
+        
+        let semaphore = Python.Semaphore(value: 0)
+        
+        var error: Error?
+        
+        @objc func image(_ image: UIImage, didFinishSavingWithError error: NSError?, contextInfo: UnsafeRawPointer?) {
+            self.error = error
+            semaphore.signal()
+        }
+    }
+    
     /// Saves the given image.
     ///
     /// - Parameters:
     ///     - image: The image to save.
-    @objc static func saveImage(_ image: UIImage) {
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+    ///
+    /// - Returns: The description of the error that occurred while saving the image, or `nil` if the image was saved.
+    @objc static func saveImage(_ image: UIImage) -> String? {
+        let handler = SaveImageHandler()
+        
+        DispatchQueue.main.async {
+            UIImageWriteToSavedPhotosAlbum(image, handler, #selector(SaveImageHandler.image(_:didFinishSavingWithError:contextInfo:)), nil)
+        }
+        
+        handler.semaphore.wait()
+        
+        return handler.error?.localizedDescription
     }
 }

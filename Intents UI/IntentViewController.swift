@@ -49,7 +49,15 @@ class IntentViewController: UIViewController, INUIHostedViewControlling {
                 if ran {
                     timer.invalidate()
                 }
-            } catch {}
+            } catch {
+                guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                    // The script didn't output anything yet.
+                    return
+                }
+                
+                timer.invalidate()
+                self.textView.text = error.localizedDescription
+            }
         })
     }
         
