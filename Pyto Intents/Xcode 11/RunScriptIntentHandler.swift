@@ -8,6 +8,20 @@
 
 import Intents
 
+/// An error occurring while handling an intent.
+fileprivate enum IntentError: LocalizedError {
+    
+    /// Pyto's shared directory is not available.
+    case noSharedDirectory
+    
+    var errorDescription: String? {
+        switch self {
+        case .noSharedDirectory:
+            return "Pyto's shared directory is not available."
+        }
+    }
+}
+
 fileprivate extension FileManager {
 
     enum ContentDate {
@@ -59,6 +73,7 @@ class RunScriptIntentHandler: NSObject, RunScriptIntentHandling {
             }
         } catch {
             print(error.localizedDescription)
+            return completion(.init(code: .failure, userActivity: nil))
         }
         RemoveCachedOutput()
         return completion(.init(code: .continueInApp, userActivity: userActivity))
@@ -66,14 +81,14 @@ class RunScriptIntentHandler: NSObject, RunScriptIntentHandling {
     
     func resolveScript(for intent: RunScriptIntent, with completion: @escaping (INFileResolutionResult) -> Void) {
         guard let file = intent.script else {
-            return
+            return completion(.needsValue())
         }
         return completion(.success(with: file))
     }
     
     func provideScriptOptions(for intent: RunScriptIntent, with completion: @escaping ([INFile]?, Error?) -> Void) {
         guard let docs = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.pyto")?.appendingPathComponent("Shortcuts") else {
-            return completion([], nil)
+            return completion(nil, IntentError.noSharedDirectory)
         }
         
         var files = [INFile]()
@@ -84,7 +99,7 @@ class RunScriptIntentHandler: NSObject, RunScriptIntentHandling {
                 files.append(INFile(data: try Data(contentsOf: fileURL), filename: fileURL.lastPathComponent, typeIdentifier: nil))
             }
         } catch {
-            return completion([], nil)
+            return completion(nil, error)
         }
         
         completion(files.reversed(), nil)

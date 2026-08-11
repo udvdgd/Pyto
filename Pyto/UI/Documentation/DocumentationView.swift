@@ -20,6 +20,8 @@ extension DocumentationSidebar {
                 
         @State var isExpanded = false
         
+        @State private var error: String?
+        
         static private let sharedDocumentationManager = DocumentationManager()
         
         @ObservedObject var documentationManager = sharedDocumentationManager
@@ -194,6 +196,7 @@ extension DocumentationSidebar {
                                      }
                                      
                                      guard let downloadedDocumentation = downloadedDocumentation else {
+                                         error = String(format: NSLocalizedString("errors.documentationNotDownloaded", comment: "The message of the alert shown when a documentation to remove is not downloaded. Replace %@ by the name of the documentation."), doc.name)
                                          return
                                      }
                                      
@@ -201,7 +204,10 @@ extension DocumentationSidebar {
                                          do {
                                              try await documentationManager.remove(documentation: downloadedDocumentation)
                                          } catch {
-                                             print(error)
+                                             let message = error.localizedDescription
+                                             await MainActor.run {
+                                                 self.error = message
+                                             }
                                          }
                                      }
                                  } label: {
@@ -258,6 +264,10 @@ extension DocumentationSidebar {
                         }
                     }
                 }
+            }.alert(isPresented: Binding<Bool>(get: { error != nil }, set: { if !$0 { error = nil } })) {
+                Alert(title: Text(NSLocalizedString("error", comment: "Error")), message: Text(error ?? ""), dismissButton: .cancel(Text(NSLocalizedString("ok", comment: "'Ok' button")), action: {
+                    error = nil
+                }))
             }
         }
     }

@@ -73,6 +73,7 @@ class RunScriptIntentHandler: NSObject, RunScriptIntentHandling {
                 }
             }
         } catch {
+            print("Error listing the scripts available to Shortcuts: \(error.localizedDescription)")
             return []
         }
         
@@ -103,6 +104,7 @@ class RunScriptIntentHandler: NSObject, RunScriptIntentHandling {
                 }
             }
         } catch {
+            print("Error listing the scripts available to Shortcuts: \(error.localizedDescription)")
             return []
         }
         
@@ -122,6 +124,7 @@ class RunScriptIntentHandler: NSObject, RunScriptIntentHandling {
                 files.append(INFile(data: try fileURL.bookmarkData(), filename: fileURL.lastPathComponent, typeIdentifier: nil))
             }
         } catch {
+            print("Error listing the scripts available to Shortcuts: \(error.localizedDescription)")
             return []
         }
         
@@ -162,6 +165,7 @@ class RunScriptIntentHandler: NSObject, RunScriptIntentHandling {
             }
         } catch {
             print(error.localizedDescription)
+            return completion(RunScriptIntentResponse(code: .failure, userActivity: nil))
         }
         
         RemoveCachedOutput()
@@ -204,7 +208,7 @@ class RunScriptIntentHandler: NSObject, RunScriptIntentHandling {
         
         if !Bool(truncating: intent.showConsole ?? 0) {
             guard let script = url else {
-                return
+                return completion(RunScriptIntentResponse(code: .failure, userActivity: nil))
             }
             
             RunShortcutsScript(at: script, arguments: intent.arguments ?? [], input: intent.input ?? "", workingDirectory: intent.workingDirectory?.fileURL)

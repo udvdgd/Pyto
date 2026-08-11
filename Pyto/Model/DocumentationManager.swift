@@ -33,6 +33,25 @@ struct DownloadableDocumentations: Codable {
     var other: [DownloadableDocumentation]
 }
 
+/// Errors downloading or removing a documentation.
+enum DocumentationManagerError: LocalizedError {
+    
+    /// The archive of a documentation is not included in the app bundle.
+    case missingArchive(documentation: DownloadableDocumentation)
+    
+    /// The documentation to remove is not downloaded.
+    case notDownloaded(documentation: DownloadableDocumentation)
+    
+    var errorDescription: String? {
+        switch self {
+        case .missingArchive(let documentation):
+            return String(format: NSLocalizedString("errors.missingDocumentationArchive", comment: "The message of the alert shown when the archive of a documentation is missing. Replace %@ by the name of the documentation."), documentation.name)
+        case .notDownloaded(let documentation):
+            return String(format: NSLocalizedString("errors.documentationNotDownloaded", comment: "The message of the alert shown when a documentation to remove is not downloaded. Replace %@ by the name of the documentation."), documentation.name)
+        }
+    }
+}
+
 /// A downloaded documentation.
 struct Documentation: Identifiable {
     
@@ -335,13 +354,17 @@ class DocumentationManager: ObservableObject {
         }
         
         if !FileManager.default.fileExists(atPath: documentationsURL.path) {
-            try? FileManager.default.createDirectory(at: documentationsURL, withIntermediateDirectories: false, attributes: nil)
+            try FileManager.default.createDirectory(at: documentationsURL, withIntermediateDirectories: true, attributes: nil)
         }
         
         try await request.beginAccessingResources()
+        defer {
+            request.endAccessingResources()
+        }
+        
         for documentation in documentations {
             guard let zipURL = Bundle.main.url(forResource: documentation.filename, withExtension: nil) else {
-                return
+                throw DocumentationManagerError.missingArchive(documentation: documentation)
             }
             
             var directoryURL = try Zip.quickUnzipFile(zipURL)
@@ -359,11 +382,11 @@ class DocumentationManager: ObservableObject {
             }
             await update()
         }
-        
-        request.endAccessingResources()
     }
     
     func remove(documentation: DownloadableDocumentation) async throws {
+        var removed = false
+        
         for doc in (try? FileManager.default.contentsOfDirectory(at: documentationsURL, includingPropertiesForKeys: nil, options: [])) ?? [] {
             let downloadableInfoURL = doc.appendingPathComponent("pyto_documentation.json")
             guard let data = try? Data(contentsOf: downloadableInfoURL) else {
@@ -377,8 +400,13 @@ class DocumentationManager: ObservableObject {
             
             if downloadableInfo.tag == documentation.tag {
                 try FileManager.default.removeItem(at: doc)
+                removed = true
                 break
             }
+        }
+        
+        guard removed else {
+            throw DocumentationManagerError.notDownloaded(documentation: documentation)
         }
         
         await MainActor.run {
@@ -413,7 +441,11 @@ class DocumentationManager: ObservableObject {
     init() {
         
         if !FileManager.default.fileExists(atPath: documentationsURL.path) {
-            try? FileManager.default.createDirectory(at: documentationsURL, withIntermediateDirectories: false, attributes: nil)
+            do {
+                try FileManager.default.createDirectory(at: documentationsURL, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                print("Error creating the documentations directory: \(error.localizedDescription)")
+            }
         }
         
         do {

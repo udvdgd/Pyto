@@ -75,8 +75,12 @@ def save_image(image: Image.Image):
     Saves the given image to the photos library.
 
     :param image: A ``PIL`` image to save.
+
+    :raises OSError: If the image cannot be saved, for example if the access to the photos library is denied.
     """
 
     check(image, "image", [Image.Image])
 
-    PyPhotosHelper.saveImage(__ui_image_from_pil_image__(image))
+    error = PyPhotosHelper.saveImage(__ui_image_from_pil_image__(image))
+    if error is not None:
+        raise OSError(str(error))
